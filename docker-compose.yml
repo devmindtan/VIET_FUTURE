@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: viet_future_backend
+    ports:
+      - "3000:3000"
+    volumes: 
+      - ./Backend:/usr/src/app
+      - /usr/src/app/node_modules
+    environment:
+      - NODE_ENV=development
