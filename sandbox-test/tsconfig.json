@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "baseUrl": ".",
+    "paths": {
+      "@verzik/sdk": ["../verzik-sdk/ts_wrapper/src/index.ts"]
+    },
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  }
+}
