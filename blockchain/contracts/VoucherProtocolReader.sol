@@ -125,6 +125,32 @@ contract VoucherProtocolReader {
         return protocol.getTenantListLength();
     }
 
+    function getOperatorIds(bytes32 tenantId, uint256 offset, uint256 limit)
+        external
+        view
+        returns (address[] memory ids)
+    {
+        uint256 total = protocol.getOperatorListLength(tenantId);
+
+        if (offset >= total) {
+            return new address[](0);
+        }
+
+        uint256 end = offset + limit;
+        if (end > total) {
+            end = total;
+        }
+
+        ids = new address[](end - offset);
+        for (uint256 i = offset; i < end; i++) {
+            ids[i - offset] = protocol.getOperatorAtIndex(tenantId, i);
+        }
+    }
+
+    function getOperatorCount(bytes32 tenantId) external view returns (uint256) {
+        return protocol.getOperatorListLength(tenantId);
+    }
+
     function getOperatorStatus(bytes32 tenantId, address operator)
         external
         view

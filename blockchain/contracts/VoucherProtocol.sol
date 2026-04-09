@@ -130,6 +130,8 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl {
 
     // Operator state theo tenant.
     mapping(bytes32 => mapping(address => Operator)) public operators;
+    mapping(bytes32 => address[]) private operatorList;
+    mapping(bytes32 => mapping(address => bool)) private isOperatorListed;
     mapping(bytes32 => mapping(address => uint256)) public nonces;
     mapping(bytes32 => mapping(address => uint256)) public pendingUnstakeAt;
     mapping(bytes32 => mapping(address => address)) public recoveryDelegates;
@@ -314,6 +316,10 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl {
             stakeAmount: msg.value,
             isActive: true
         });
+        if (!isOperatorListed[tenantId][msg.sender]) {
+            operatorList[tenantId].push(msg.sender);
+            isOperatorListed[tenantId][msg.sender] = true;
+        }
         // Reset trạng thái unstake vì operator vừa mới join.
         pendingUnstakeAt[tenantId][msg.sender] = 0;
 
@@ -692,6 +698,10 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl {
             stakeAmount: oldData.stakeAmount,
             isActive: oldData.isActive
         });
+        if (!isOperatorListed[tenantId][msg.sender]) {
+            operatorList[tenantId].push(msg.sender);
+            isOperatorListed[tenantId][msg.sender] = true;
+        }
         // Chuyển nonce sang ví mới để đảm bảo continuity của chữ ký.
         nonces[tenantId][msg.sender] = nonces[tenantId][lostOperator];
         // Reset pending unstake cho ví mới.
@@ -746,6 +756,10 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl {
             stakeAmount: oldData.stakeAmount,
             isActive: oldData.isActive
         });
+        if (!isOperatorListed[tenantId][newOperator]) {
+            operatorList[tenantId].push(newOperator);
+            isOperatorListed[tenantId][newOperator] = true;
+        }
         // Chuyển nonce sang ví mới để tiếp tục flow EIP-712.
         nonces[tenantId][newOperator] = nonces[tenantId][lostOperator];
         // Reset pending unstake cho ví mới.
@@ -1176,5 +1190,13 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl {
 
     function getTenantAtIndex(uint256 index) external view returns (bytes32) {
         return tenantList[index];
+    }
+
+    function getOperatorListLength(bytes32 tenantId) external view returns (uint256) {
+        return operatorList[tenantId].length;
+    }
+
+    function getOperatorAtIndex(bytes32 tenantId, uint256 index) external view returns (address) {
+        return operatorList[tenantId][index];
     }
 }

@@ -28,7 +28,7 @@ async function main() {
   console.log("=== Setup Tenant: Creating Tenant Instance ===");
 
   // --- Đọc biến môi trường ---
-  const protocolAddress = "0x09635F643e140090A9A8Dcd712eD6285858ceBef";
+  const protocolAddress = "0xE6E340D132b5f46d1e472DebcD681B2aBc16e57E";
   const rawTenantId = "VERZIK";
   const tenantAdmin = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"; // địa chỉ ví của SaaS admin
   const tenantTreasury = "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc"; // địa chỉ ví treasury (tuỳ chọn)
