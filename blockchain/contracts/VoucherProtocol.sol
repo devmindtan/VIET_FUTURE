@@ -254,8 +254,8 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl {
         if (config.admin == address(0) || tenantTreasury == address(0)) revert InvalidTenantAddress();
         // Slasher và operatorManager phải là địa chỉ hợp lệ khác zero.
         if (config.slasher == address(0) || config.operatorManager == address(0)) revert InvalidTenantAddress();
-        // Protocol Admin không được là tenant admin để đảm bảo tách biệt quyền hạn.
-        if (hasRole(PROTOCOL_ADMIN_ROLE, config.admin)) revert ProtocolAdminCannotHaveOtherRoles();
+        // Protocol Admin không được là tenant (admin, slasher, operator manager, treasury) để đảm bảo tách biệt quyền hạn.
+        if (hasRole(PROTOCOL_ADMIN_ROLE, config.admin) || hasRole(PROTOCOL_ADMIN_ROLE, config.slasher) || hasRole(PROTOCOL_ADMIN_ROLE, config.operatorManager)|| hasRole(PROTOCOL_ADMIN_ROLE, tenantTreasury)) revert ProtocolAdminCannotHaveOtherRoles();
         // minStake phải lớn hơn 0 để đảm bảo economic barrier cho operator.
         if (config.minStake == 0) revert InvalidConfigValue();
         // unstakeCooldown phải lớn hơn 0 để đảm bảo luôn có cửa sổ quan sát rủi ro.
