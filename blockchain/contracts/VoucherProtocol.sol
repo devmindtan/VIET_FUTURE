@@ -536,10 +536,6 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl {
         if (signer == address(0)) revert InvalidSignature();
     }
 
-
-
-
-
     /**
      * @notice Thu hồi hiệu lực tài liệu bởi tenant admin hoặc issuer.
      */
@@ -862,9 +858,6 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl {
         if (signer == address(0)) revert InvalidSignature();
     }
 
-
-
-
     /**
      * @notice Cấu hình chính sách co-sign theo docType cho từng tenant.
      */
@@ -933,10 +926,6 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl {
             tenantCoSignRoles[tenantId][docType][operator]
         );
     }
-
-
-
-
 
     /**
      * @notice Cấu hình stake tối thiểu cho operator trong từng tenant.
@@ -1069,23 +1058,6 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl {
             reason
         );
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     /**
