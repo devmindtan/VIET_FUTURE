@@ -41,7 +41,8 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl {
     error OperatorNotLost();
     error InvalidPenaltyBps(uint16 provided);
     error PenaltyNotConfigured(bytes32 violationCode);
-
+    error CannotSlashYourself();
+    error ProtocolAdminCannotHaveOtherRoles();
     // --- CẤU TRÚC DỮ LIỆU ---
     struct Tenant {
         address admin;
@@ -109,6 +110,14 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl {
         uint256 trustedCoSignCount;
         uint256 trustedCoSignRoleMask;
         bool coSignQualified;
+    }
+
+    struct TenantConfig {
+        address admin;           
+        address slasher;         
+        address operatorManager;
+        uint256 minStake;        
+        uint256 unstakeCooldown; 
     }
 
     // --- TRẠNG THÁI TOÀN CẦU ---
@@ -236,19 +245,27 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl {
      */
     function createTenant(
         bytes32 tenantId,
-        address tenantAdmin,
-        address tenantTreasury
+        address tenantTreasury,
+        TenantConfig calldata config
     ) external onlyRole(PROTOCOL_ADMIN_ROLE) {
         // Tenant id không được rỗng vì sẽ dùng làm namespace cho toàn bộ dữ liệu.
         if (tenantId == bytes32(0)) revert InvalidConfigValue();
         // Admin và treasury phải là địa chỉ hợp lệ khác zero.
-        if (tenantAdmin == address(0) || tenantTreasury == address(0)) revert InvalidTenantAddress();
+        if (config.admin == address(0) || tenantTreasury == address(0)) revert InvalidTenantAddress();
+        // Slasher và operatorManager phải là địa chỉ hợp lệ khác zero.
+        if (config.slasher == address(0) || config.operatorManager == address(0)) revert InvalidTenantAddress();
+        // Protocol Admin không được là tenant admin để đảm bảo tách biệt quyền hạn.
+        if (hasRole(PROTOCOL_ADMIN_ROLE, config.admin)) revert ProtocolAdminCannotHaveOtherRoles();
+        // minStake phải lớn hơn 0 để đảm bảo economic barrier cho operator.
+        if (config.minStake == 0) revert InvalidConfigValue();
+        // unstakeCooldown phải lớn hơn 0 để đảm bảo luôn có cửa sổ quan sát rủi ro.
+        if (config.unstakeCooldown == 0) revert InvalidConfigValue();
         // Mỗi tenant id chỉ được khởi tạo duy nhất một lần.
         if (tenants[tenantId].admin != address(0)) revert TenantAlreadyExists();
 
         // Lưu tenant mới vào registry toàn cục.
         tenants[tenantId] = Tenant({
-            admin: tenantAdmin,
+            admin: config.admin,
             treasury: tenantTreasury,
             isActive: true,
             createdAt: block.timestamp
@@ -265,19 +282,24 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl {
         bytes32 tenantOperatorManagerRole = _getTenantOperatorManagerRole(tenantId);
 
         // Cấp quyền admin tenant cho ví quản trị tenant.
-        _grantRole(tenantAdminRole, tenantAdmin);
+        _grantRole(tenantAdminRole, config.admin);
         // Cấp quyền slasher mặc định cho admin tenant.
-        _grantRole(tenantSlasherRole, tenantAdmin);
+        _grantRole(tenantSlasherRole, config.slasher);
         // Cấp quyền quản lý operator mặc định cho admin tenant.
-        _grantRole(tenantOperatorManagerRole, tenantAdmin);
+        _grantRole(tenantOperatorManagerRole, config.operatorManager);
+
+        // Thiết lập hệ thống phân quyền nội bộ cho Tenant
+        _setRoleAdmin(tenantAdminRole, tenantAdminRole);
+        _setRoleAdmin(tenantSlasherRole, tenantAdminRole);
+        _setRoleAdmin(tenantOperatorManagerRole, tenantAdminRole);
 
         // Khởi tạo stake tối thiểu mặc định cho tenant mới.
-        tenantMinOperatorStake[tenantId] = MIN_STAKE;
+        tenantMinOperatorStake[tenantId] = config.minStake;
         // Khởi tạo cooldown unstake mặc định cho tenant mới.
-        tenantUnstakeCooldown[tenantId] = UNSTAKE_COOLDOWN;
+        tenantUnstakeCooldown[tenantId] = config.unstakeCooldown;
 
         // Phát event để indexer ghi nhận tenant vừa được tạo.
-        emit TenantCreated(tenantId, tenantAdmin, tenantTreasury);
+        emit TenantCreated(tenantId, config.admin, tenantTreasury);
     }
 
     /**
@@ -296,6 +318,8 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl {
      * @notice Tuyển dụng operator mới trong phạm vi một tenant.
      */
     function joinAsOperator(bytes32 tenantId, string calldata _metadataURI) external payable {
+        // Protocol Admin không được tham gia là Operator để tránh xung đột lợi ích.
+        if (hasRole(PROTOCOL_ADMIN_ROLE, msg.sender)) revert ProtocolAdminCannotHaveOtherRoles();
         // Tenant phải tồn tại trước khi nhận operator mới.
         if (tenants[tenantId].admin == address(0)) revert TenantNotFound();
         // Tenant đang bị vô hiệu thì không cho phép onboarding thêm operator.
@@ -442,6 +466,8 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl {
 
         // Recover signer thực sự từ payload và chữ ký.
         address signer = _recoverSigner(payload, signature);
+        // Protocol Admin không được ký tài liệu để tránh xung đột lợi ích.
+        if (hasRole(PROTOCOL_ADMIN_ROLE, signer)) revert ProtocolAdminCannotHaveOtherRoles();
         // Signer phải là operator đã đăng ký trong tenant.
         if (operators[payload.tenantId][signer].stakeAmount == 0) revert OperatorNotInTenant();
         // Signer phải đang active mới được anchor tài liệu.
@@ -803,6 +829,8 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl {
 
         // Recover signer thực sự từ payload co-sign.
         address signer = _recoverCoSigner(payload, signature);
+        // Protocol Admin không được co-sign để tránh xung đột lợi ích.
+        if (hasRole(PROTOCOL_ADMIN_ROLE, signer)) revert ProtocolAdminCannotHaveOtherRoles();
         // Signer phải là operator thuộc tenant tương ứng.
         if (operators[payload.tenantId][signer].stakeAmount == 0) revert OperatorNotInTenant();
         // Signer phải đang active thì mới được đồng ký.
@@ -918,6 +946,8 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl {
         if (!hasRole(_getTenantOperatorManagerRole(tenantId), msg.sender)) revert Unauthorized();
         // Operator không được là zero address.
         if (operator == address(0)) revert Unauthorized();
+        // Protocol Admin không được được whitelist làm co-signer để tránh xung đột.
+        if (whitelisted && hasRole(PROTOCOL_ADMIN_ROLE, operator)) revert ProtocolAdminCannotHaveOtherRoles();
 
         // Nếu thêm vào whitelist thì role bắt buộc phải hợp lệ.
         if (whitelisted) {
@@ -1016,6 +1046,8 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl {
         bytes32 violationCode,
         string calldata reason
     ) external nonReentrant {
+        // Ngăn chặn không tự chặn chính mình
+        if (msg.sender == _operator) revert CannotSlashYourself();
         // Tenant phải tồn tại trước khi soft slash.
         if (tenants[tenantId].admin == address(0)) revert TenantNotFound();
         // Chỉ slasher role của tenant mới được thực thi soft slash.
