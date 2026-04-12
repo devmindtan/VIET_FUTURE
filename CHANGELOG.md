@@ -59,6 +59,11 @@ Dự án tuân thủ tiêu chuẩn [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Dự kiến tích hợp The Graph để index và truy vấn dữ liệu on-chain:**
+  - Thay thế hoặc bổ sung bên cạnh `VoucherProtocolReader` cho các truy vấn phức tạp (lịch sử, thống kê, lọc nhiều điều kiện).
+  - Subgraph sẽ lắng nghe các event chính: `TenantCreated`, `OperatorJoined`, `DocumentRegistered`, `DocumentCoSigned`, `OperatorSlashed`, `OperatorRecovered`.
+  - Cho phép backend truy vấn qua GraphQL thay vì gọi RPC trực tiếp, giảm tải node và tăng hiệu năng đọc.
+
 - **Bổ sung backlog mở rộng Reader contract phục vụ debug và vận hành:**
   - Có thể thêm các API truy vấn phục vụ kiểm tra role, recovery chain và trạng thái governance theo tenant.
   - Các API reader mở rộng sẽ hữu ích cho CLI, dashboard quản trị và kiểm thử tích hợp.
