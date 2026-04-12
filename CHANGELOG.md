@@ -12,12 +12,15 @@ Dự án tuân thủ tiêu chuẩn [Semantic Versioning](https://semver.org/).
   - [📌 Giải thích thuật ngữ (Quick Reference)](#-giải-thích-thuật-ngữ-quick-reference)
   - [📌 Giải thích các giai đoạn phiên bản (Suffix)](#-giải-thích-các-giai-đoạn-phiên-bản-suffix)
   - [\[Unreleased\]](#unreleased)
-    - [Security](#security)
     - [Changed](#changed)
     - [Added](#added)
-  - [\[1.0.0-alpha\] - 2026-04-09](#100-alpha---2026-04-09)
+  - [\[1.0.1-alpha\] - 2026-04-12](#101-alpha---2026-04-12)
+    - [Security](#security)
     - [Changed](#changed-1)
     - [Added](#added-1)
+  - [\[1.0.0-alpha\] - 2026-04-09](#100-alpha---2026-04-09)
+    - [Changed](#changed-2)
+    - [Added](#added-2)
 
 ---
 
@@ -45,34 +48,7 @@ Dự án tuân thủ tiêu chuẩn [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Security
-
-- **Tiếp tục siết chặt nguyên tắc tách biệt quyền hạn cho Protocol Owner / Protocol Admin:**
-  - Dự kiến bổ sung kiểm tra đồng nhất tại các hàm còn có thể tạo đường vòng để Protocol Admin mang vai trò Tenant hoặc Operator.
-  - Các điểm cần ưu tiên rà soát thêm:
-    1. `setTreasury` để ngăn treasury bị đổi sang ví có `PROTOCOL_ADMIN_ROLE`.
-    2. `setRecoveryDelegate` để ngăn delegate recovery là ví có `PROTOCOL_ADMIN_ROLE`.
-    3. `recoverOperatorByDelegate` để ngăn Protocol Admin trở thành operator thông qua recovery.
-    4. `recoverOperatorByAdmin` để ngăn `newOperator` là ví có `PROTOCOL_ADMIN_ROLE`.
-
-- **Làm rõ mô hình phân quyền cấp protocol:**
-  - Cần thống nhất rõ toàn bộ hệ thống sẽ cấm theo `protocolOwner` hay theo `PROTOCOL_ADMIN_ROLE`.
-  - Hiện tại logic đang chạy theo role, nên cần đồng bộ lại tài liệu, SDK, CLI và test để tránh hiểu nhầm giữa khái niệm owner và protocol admin.
-
 ### Changed
-
-- **Dự kiến refactor các kiểm tra Protocol Admin trùng lặp trong Smart Contract:**
-  - Tách các đoạn `hasRole(PROTOCOL_ADMIN_ROLE, ...)` lặp lại thành helper nội bộ để giảm rủi ro bỏ sót rule khi mở rộng contract.
-
-- **Dự kiến làm rõ semantics khi Tenant bị inactive:**
-  - Cần xác định rõ tenant inactive sẽ:
-    1. Chỉ chặn các hành động mới như join, register, co-sign.
-    2. Hay đóng băng toàn bộ lifecycle operator, bao gồm top-up stake, update metadata, request unstake, execute unstake.
-  - Sau khi chốt rule sẽ cập nhật đồng bộ trong contract, SDK, CLI và tài liệu.
-
-- **Dự kiến chuẩn hóa hệ thống lỗi theo đúng ngữ nghĩa nghiệp vụ:**
-  - Một số chỗ đang dùng lỗi chung như `Unauthorized` cho các trường hợp dữ liệu đầu vào không hợp lệ.
-  - Sẽ xem xét tách thêm các custom error mang nghĩa rõ hơn như lỗi địa chỉ operator không hợp lệ hoặc lỗi cấu hình không hợp lệ.
 
 - **Dự kiến dọn kiến trúc mã nguồn để tránh drift giữa nhiều bản contract:**
   - Cần xác định rõ file contract nào là nguồn chuẩn để compile, deploy và test.
@@ -80,37 +56,114 @@ Dự án tuân thủ tiêu chuẩn [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **Bổ sung backlog hoàn thiện flow recovery operator:**
-  - Logic recovery hiện mới chuyển stake, metadata, nonce và trạng thái active/inactive.
-  - Cần xem xét bổ sung cơ chế kế thừa quyền nghiệp vụ của operator cũ, đặc biệt với các tài liệu mà ví cũ là issuer.
-  - Các hướng mở rộng có thể bao gồm:
-    1. Mapping alias từ ví cũ sang ví mới.
-    2. Cho phép kiểm tra recovered operator trong các hàm nghiệp vụ liên quan đến issuer.
-    3. Hoặc định nghĩa rõ recovery chỉ phục hồi quyền staking/ký mới chứ không kế thừa toàn bộ quyền issuer cũ.
-
-- **Bổ sung backlog siết chặt tách biệt role bên trong từng Tenant:**
-  - Cần cân nhắc chặn hoặc kiểm soát các trường hợp một ví đồng thời giữ nhiều vai trò như:
-    1. `admin` đồng thời là `slasher`.
-    2. `admin` đồng thời là `operatorManager`.
-    3. `slasher` đồng thời là `operatorManager`.
-    4. `treasury` đồng thời là một role quản trị của tenant.
-  - Việc này giúp giảm xung đột lợi ích và làm governance rõ ràng hơn.
-
 - **Bổ sung backlog mở rộng Reader contract phục vụ debug và vận hành:**
   - Có thể thêm các API truy vấn phục vụ kiểm tra role, recovery chain và trạng thái governance theo tenant.
   - Các API reader mở rộng sẽ hữu ích cho CLI, dashboard quản trị và kiểm thử tích hợp.
 
-- **Bổ sung backlog chuẩn hóa hành vi pagination của Reader:**
-  - Cần mô tả rõ hành vi khi `offset` vượt quá tổng số phần tử hoặc khi `limit = 0`.
-  - Sau khi thống nhất sẽ cập nhật docs và test case tương ứng.
-
-- **Bổ sung backlog hardening cho Reader contract:**
-  - Có thể nâng cấp constructor của `VoucherProtocolReader` để kiểm tra địa chỉ protocol hợp lệ.
-  - Có thể chuyển biến tham chiếu `protocol` sang `immutable` để rõ intent và tối ưu hơn.
-
 - **Bổ sung kế hoạch tăng độ phủ kiểm thử cho các rule phân tách quyền:**
   - Cần thêm test cho toàn bộ các trường hợp Protocol Admin không được trở thành tenant hoặc operator theo mọi đường đi trực tiếp và gián tiếp.
   - Bao gồm các case qua create tenant, update treasury, recovery delegate, recovery by admin, operator onboarding, ký tài liệu và co-sign.
+
+---
+
+## [1.0.1-alpha] - 2026-04-12
+
+### Security
+
+- **Hoàn thiện thêm lớp tách biệt quyền hạn cho Protocol Admin ở các đường đi gián tiếp:**
+  - Đã bổ sung kiểm tra để chặn ví có `PROTOCOL_ADMIN_ROLE` tại các hàm:
+    1. `setTreasury`
+    2. `setRecoveryDelegate`
+    3. `recoverOperatorByDelegate`
+    4. `recoverOperatorByAdmin`
+  - Qua đó khép kín hơn rule: Protocol Admin không được trở thành Tenant role hoặc Operator thông qua các luồng cập nhật treasury và recovery.
+
+- **Làm rõ mô hình phân quyền cấp protocol:**
+  - Đã thống nhất mô tả và triển khai hiện tại theo `PROTOCOL_ADMIN_ROLE`.
+  - Đã đồng bộ lại tài liệu mô tả hàm để tránh hiểu nhầm giữa khái niệm `protocolOwner` và quyền vận hành thực tế của Protocol Admin.
+
+### Changed
+
+- **Đã làm rõ semantics khi Tenant bị inactive theo hướng đóng băng lifecycle operator:**
+  - Khi tenant inactive, các hàm sau sẽ `revert TenantInactive`:
+    1. `topUpStake`
+    2. `updateOperatorMetadata`
+    3. `requestUnstake`
+    4. `executeUnstake`
+  - Semantics mới giúp trạng thái inactive nhất quán hơn giữa onboarding, ký tài liệu và vòng đời operator.
+
+- **Đã chuẩn hóa hệ thống lỗi cho đầu vào địa chỉ operator:**
+  - Bổ sung custom error `InvalidOperatorAddress`.
+  - Cập nhật `setCoSignOperator` để dùng `InvalidOperatorAddress` khi `operator == address(0)` thay vì dùng `Unauthorized`.
+
+- **Đã refactor các kiểm tra Protocol Admin trùng lặp trong Smart Contract:**
+  - Tách các đoạn kiểm tra `PROTOCOL_ADMIN_ROLE` lặp lại thành helper nội bộ để giảm rủi ro bỏ sót rule khi mở rộng contract.
+
+- **Đã tách khai báo lỗi và sự kiện sang interface dùng chung:**
+  - Tạo contract interface riêng để chứa toàn bộ custom error và event của protocol.
+  - `VoucherProtocol` kế thừa interface này để giảm lặp định nghĩa trong file chính và chuẩn hóa reuse cho các contract khác.
+  - `VoucherProtocolReader` đã chuyển sang dùng lỗi `DocumentNotFound` từ interface chung.
+  - Ghi nhận: thay đổi này chủ yếu giúp tổ chức mã nguồn; kích thước bytecode runtime gần như không giảm đáng kể.
+
+- **Đã tách struct và utility helper sang file riêng:**
+  - Tạo `VoucherTypes.sol` với library `VoucherTypes` để gom các struct dùng chung (`Tenant`, `Operator`, `Document`, `RegisterPayload`, `CoSignPayload`, `CoSignPolicy`, `DocumentSnapshot`, `TenantConfig`).
+  - `VoucherProtocol` và `VoucherProtocolReader` đã chuyển toàn bộ kiểu dữ liệu struct sang `VoucherTypes.*`.
+  - Tạo `VoucherProtocolHelper.sol` để chứa các hàm utility không thuộc logic nghiệp vụ chính (role hash, role mask, validation collision khi tạo tenant).
+  - Ghi nhận: refactor giúp code rõ ràng hơn và dễ bảo trì; kích thước bytecode runtime của core contract vẫn chưa giảm dưới ngưỡng deploy mainnet.
+
+- **Tách toàn bộ logic nghiệp vụ sang 4 external library để giảm bytecode thực sự:**
+  - Tạo `OperatorLib.sol`: toàn bộ vòng đời operator (join, topUp, unstake, slash, softSlash, setStatus, setTreasury, setMinStake, setCooldown, setViolationPenalty).
+  - Tạo `DocumentLib.sol`: `registerWithSignature`, `revokeDocument` (bao gồm EIP-712 recovery).
+  - Tạo `CoSignLib.sol`: `coSignDocumentWithSignature`, `setCoSignPolicy`, `setCoSignOperator`.
+  - Tạo `RecoveryLib.sol`: `setRecoveryDelegate`, `recoverOperatorByDelegate`, `recoverOperatorByAdmin`.
+  - Gom toàn bộ state protocol vào `VoucherTypes.VoucherStorage` struct và truyền bằng storage reference vào các library.
+  - `VoucherProtocol` trở thành thin orchestrator (~350 dòng): chỉ còn constructor, `createTenant`, `setTenantStatus`, view getters và các stub 1 dòng gọi sang library.
+  - Xóa `VoucherProtocolViewAdapter.sol` (không cần thiết, tăng overhead dispatch).
+  - Bật `viaIR: true` trong hardhat compiler để tối ưu thêm.
+  - **Kết quả: bytecode giảm từ 25 055 → 9 688 bytes (−61%), tất cả contract đều dưới ngưỡng 24 576 bytes mainnet.**
+  - Core logic không thay đổi: thứ tự kiểm tra, mutation state và event giữ nguyên hoàn toàn.
+  - | Contract          | Size        | Status |
+    | ----------------- | ----------- | ------ |
+    | `VoucherProtocol` | 9,688 bytes | ✓      |
+    | `OperatorLib`     | 5,851 bytes | ✓      |
+    | `DocumentLib`     | 3,827 bytes | ✓      |
+    | `CoSignLib`       | 3,964 bytes | ✓      |
+    | `RecoveryLib`     | 4,685 bytes | ✓      |
+
+- **Đã hardening Reader contract ở mức khởi tạo và phân trang:**
+  - Bổ sung kiểm tra zero-address trong constructor của `VoucherProtocolReader`.
+  - Chuyển tham chiếu `protocol` sang `immutable` để làm rõ intent và tối ưu hơn.
+  - Chuẩn hóa hành vi pagination: `limit = 0` sẽ trả mảng rỗng ngay cho các hàm liệt kê.
+
+- **Cập nhật tài liệu Smart Contract để khớp với logic hiện tại:**
+  - Đã sửa mô tả các hàm liên quan đến `createTenant`, `joinAsOperator`, `registerWithSignature`, `coSignDocumentWithSignature`, `setCoSignOperator`, `setTreasury`, `setRecoveryDelegate`, `recoverOperatorByDelegate`, `recoverOperatorByAdmin`, `setTenantStatus`.
+  - Đã đồng bộ signature mới của `createTenant` dùng `TenantConfig` và giải thích đúng theo cấu hình runtime hiện tại.
+
+### Added
+
+- **Đã siết chặt tách biệt role bên trong từng Tenant:**
+  - Đã chuyển sang mô hình 3 ví cho governance tenant: `admin`, `operatorManager`, `treasury` (gộp quyền `slasher` vào `operatorManager`).
+  - Đã chặn chồng chéo role ngay tại `createTenant` giữa `admin`, `operatorManager`, `treasury`.
+  - Đã chặn cập nhật `treasury` sang ví đang giữ role governance của cùng tenant.
+  - Đã override `grantRole` để enforce rule tách biệt role với các role động theo tenant, tránh lách qua AccessControl.
+  - Đã cập nhật quyền cho `slashOperator` và `softSlashOperator` sang `operatorManager` để giảm số ví vận hành mà vẫn giữ tách biệt với `admin` và `treasury`.
+  - Đã bổ sung custom error `TenantRoleConflict` để chuẩn hóa nguyên nhân revert.
+
+- **Đã triển khai hướng 3 cho flow recovery operator (không kế thừa issuer cũ):**
+  - Recovery hiện tiếp tục migrate stake, metadata, nonce và trạng thái active/inactive như trước.
+  - Đã chốt semantics: recovery chỉ phục hồi năng lực vận hành cho ví mới, không tự động kế thừa quyền issuer lịch sử của ví cũ.
+  - Đã bổ sung alias mapping để phục vụ audit/tra cứu chain recovery:
+    1. Theo dõi hướng `oldOperator -> newOperator`.
+    2. Theo dõi `rootOperator` của ví hiện tại trong chain recovery.
+  - Đã bổ sung event và API reader để CLI/dashboard có thể truy vấn trạng thái alias recovery mà không thay đổi quyền nghiệp vụ tài liệu hiện hữu.
+
+- **Bổ sung thêm hàm query lịch sử gia dịch bằng transaction hash:**
+  - Transaction (Giao dịch): Bản đăng ký ban đầu của người dùng (gồm người gửi, người nhận, phí gas dự kiến và dữ liệu thô).
+  - Receipt (Biên lai): Kết quả thực thi thực tế (xác nhận thành công hay thất bại, lượng gas thực tế đã tiêu tốn).
+  - Block (Khối): "Địa chỉ" của giao dịch trong chuỗi (gồm số thứ tự khối, thời gian ghi nhận và mã định danh của khối đó).
+  - Confirmations (Xác nhận): Độ tin cậy của giao dịch (số lượng khối mới đã đè lên trên; càng nhiều xác nhận càng khó bị đảo ngược).
+  - Decoded Input (Đầu vào đã giải mã): Nội dung lệnh bạn đã gửi (dịch từ mã máy sang tên hàm và các tham số cụ thể mà bạn đã nhập).
+  - Decoded Logs (Sự kiện đã giải mã): Thông báo phản hồi từ hợp đồng (ghi lại những thay đổi quan trọng đã xảy ra sau khi lệnh thực hiện xong).
 
 ---
 
