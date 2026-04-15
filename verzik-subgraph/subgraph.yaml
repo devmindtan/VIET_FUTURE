@@ -8,7 +8,7 @@ dataSources:
     name: VoucherProtocol
     network: hardhat
     source:
-      address: "0x5081a39b8A5f0E35a8D959395a630b68B74Dd30f"
+      address: "0xD8a5a9b31c3C0232E196d518E89Fd8bF83AcAd43"
       abi: VoucherProtocol
       startBlock: 0
     mapping:

@@ -74,7 +74,6 @@ library VoucherTypes {
 
     struct TenantConfig {
         address admin;
-        address slasher;
         address operatorManager;
         uint256 minStake;
         uint256 unstakeCooldown;
