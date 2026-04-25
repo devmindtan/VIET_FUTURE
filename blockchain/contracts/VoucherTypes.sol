@@ -21,6 +21,7 @@ library VoucherTypes {
     struct Document {
         bytes32 tenantId;
         string cid;
+        address owner;
         address issuer;
         uint256 timestamp;
         bool isValid;
@@ -33,6 +34,7 @@ library VoucherTypes {
     struct RegisterPayload {
         bytes32 tenantId;
         bytes32 fileHash;
+        address owner;
         string cid;
         bytes32 ciphertextHash;
         bytes32 encryptionMetaHash;
@@ -74,7 +76,6 @@ library VoucherTypes {
 
     struct TenantConfig {
         address admin;
-        address slasher;
         address operatorManager;
         uint256 minStake;
         uint256 unstakeCooldown;

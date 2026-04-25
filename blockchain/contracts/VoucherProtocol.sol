@@ -100,7 +100,10 @@ contract VoucherProtocol is ReentrancyGuard, AccessControl, IVoucherProtocolErro
         _s.tenantMinOperatorStake[tenantId] = config.minStake;
         _s.tenantUnstakeCooldown[tenantId] = config.unstakeCooldown;
 
-        emit TenantCreated(tenantId, config.admin, tenantTreasury);
+        emit TenantCreated(tenantId, config.admin, config.operatorManager, tenantTreasury);
+        emit TenantStatusUpdated(tenantId, true);
+        emit MinOperatorStakeUpdated(tenantId, 0, config.minStake);
+        emit UnstakeCooldownUpdated(tenantId, 0, config.unstakeCooldown);
     }
 
     /**

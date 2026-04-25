@@ -40,7 +40,13 @@ interface IVoucherProtocolErrorsEvents {
     error TenantRoleConflict();
 
     event ProtocolInitialized(address indexed protocolOwner);
-    event TenantCreated(bytes32 indexed tenantId, address indexed admin, address indexed treasury);
+    event TenantCreated(
+        bytes32 indexed tenantId, 
+        address indexed admin, 
+        address indexed manager,
+        address treasury
+    );
+    
     event TenantStatusUpdated(bytes32 indexed tenantId, bool isActive);
 
     event OperatorJoined(bytes32 indexed tenantId, address indexed operator, string metadata, uint256 stake);
@@ -69,6 +75,7 @@ interface IVoucherProtocolErrorsEvents {
     event DocumentAnchored(
         bytes32 indexed tenantId,
         bytes32 indexed fileHash,
+        address owner,
         string cid,
         address indexed issuer,
         bytes32 ciphertextHash,
