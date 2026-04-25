@@ -25,3 +25,4 @@ blockchain-local
 verzik-sdk
 verzik-sdk/*
 app-route
+.env
