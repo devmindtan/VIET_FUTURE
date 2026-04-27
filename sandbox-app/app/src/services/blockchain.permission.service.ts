@@ -1,17 +1,27 @@
 import { ethers } from "ethers";
 
 const RAW_BASE = import.meta.env.VITE_BACKEND_URL as string | undefined;
-const BASE = (RAW_BASE ?? "").replace(/\/$/, "");
+const API_BASE = (RAW_BASE ?? "").replace(/\/$/, "") + "/api/v1/blockchain";
 
 export type PermissionRole =
   | "PROTOCOL_OWNER"
   | "TENANT_ADMIN"
+  | "TENANT_MANAGER"
   | "TENANT_TREASURY"
-  | "TENANT_OPERATOR"
   | "OPERATOR"
   | "GUEST";
 
+// New response format from refactored backend
 interface CheckPermissionApiResponse {
+  data: {
+    address: string;
+    role: string;
+    hasPermission: boolean;
+  };
+}
+
+// Legacy response format
+interface LegacyCheckPermissionApiResponse {
   success: boolean;
   role?: string;
   message?: string;
@@ -24,19 +34,15 @@ export function convertPrivateKeyToAddress(privateKey: string): string {
 }
 
 function normalizeRole(role: string): PermissionRole {
-  if (role === "TENANT_MANAGER") {
-    return "TENANT_OPERATOR";
-  }
-
   if (
     role === "PROTOCOL_OWNER" ||
     role === "TENANT_ADMIN" ||
+    role === "TENANT_MANAGER" ||
     role === "TENANT_TREASURY" ||
-    role === "TENANT_OPERATOR" ||
     role === "OPERATOR" ||
     role === "GUEST"
   ) {
-    return role;
+    return role as PermissionRole;
   }
 
   return "GUEST";
@@ -47,7 +53,7 @@ export async function checkPermission(
 ): Promise<PermissionRole | null> {
   try {
     const address = convertPrivateKeyToAddress(privateKey);
-    const res = await fetch(`${BASE}/api/check-permission`, {
+    const res = await fetch(`${API_BASE}/permissions/check`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -58,16 +64,18 @@ export async function checkPermission(
     });
 
     if (!res.ok) {
+      console.error(`Permission check failed [${res.status}]`);
       return null;
     }
 
-    const data = (await res.json()) as CheckPermissionApiResponse;
-    if (!data.success || !data.role) {
+    const response = (await res.json()) as CheckPermissionApiResponse;
+    if (!response.data || !response.data.role) {
       return null;
     }
 
-    return normalizeRole(data.role);
-  } catch {
+    return normalizeRole(response.data.role);
+  } catch (error) {
+    console.error("Permission check error:", error);
     return null;
   }
 }

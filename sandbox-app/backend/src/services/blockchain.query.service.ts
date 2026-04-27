@@ -579,9 +579,3 @@ export class BlockchainQueryService {
     }
   }
 }
-// async function main() {
-//   const test = new BlockchainQueryService();
-//   const res = await test.getOperatorJoineds();
-//   console.log(res);
-// }
-// main();

@@ -1,6 +1,20 @@
-const RAW_BASE = import.meta.env.VITE_BACKEND_URL as string | undefined;
-const BASE = (RAW_BASE ?? "").replace(/\/$/, "");
+/**
+ * Updated Blockchain Query Service
+ * Compatible with refactored backend API
+ * API Base: /api/v1/blockchain/*
+ */
 
+const RAW_BASE = import.meta.env.VITE_BACKEND_URL as string | undefined;
+const API_BASE = (RAW_BASE ?? "").replace(/\/$/, "") + "/api/v1/blockchain";
+
+// New response format from refactored backend
+export interface ApiResponse<T> {
+  data: T;
+  meta?: Record<string, any>;
+  links?: Record<string, string>;
+}
+
+// Legacy interface for backward compatibility
 export interface FullDataResponse {
   success: boolean;
   data: DataResponseWithTotal;
@@ -36,7 +50,7 @@ function buildQuery(
 
 async function getJson<T>(path: string): Promise<T | null> {
   try {
-    const res = await fetch(`${BASE}${path}`, {
+    const res = await fetch(`${API_BASE}${path}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -44,50 +58,82 @@ async function getJson<T>(path: string): Promise<T | null> {
     });
 
     if (!res.ok) {
+      console.error(`API Error [${res.status}]:`, path);
       return null;
     }
 
     return (await res.json()) as T;
-  } catch {
+  } catch (error) {
+    console.error("Fetch error:", error);
     return null;
   }
+}
+
+// Helper: Convert new format to legacy format for backward compatibility
+function convertToLegacy<T extends Record<string, any>>(
+  apiResponse: ApiResponse<T>,
+): any {
+  if (Array.isArray(apiResponse.data)) {
+    return {
+      success: true,
+      data: {
+        data: apiResponse.data,
+        total: apiResponse.meta?.total || 0,
+      },
+    };
+  }
+  return {
+    success: true,
+    data: apiResponse.data,
+  };
 }
 
 export async function fetchDocumentAnchoreds(
   first?: number,
 ): Promise<FullDataResponse | null> {
-  const query = buildQuery({ first });
-  return getJson<FullDataResponse>(`/api/documents${query}`);
+  const query = buildQuery({ limit: first || 20 });
+  const response = await getJson<ApiResponse<any>>(`/documents${query}`);
+  return response ? convertToLegacy(response) : null;
 }
-export async function fetchTenantCount(): Promise<DataResponse | null> {
-  return getJson<DataResponse>("/api/tenant-count");
+export async function fetchTenantCount(): Promise<ScalarDataResponse<number> | null> {
+  const response = await getJson<ApiResponse<any>>("/tenant-count");
+  return response
+    ? {
+        success: true,
+        data: response.data?.count || 0,
+      }
+    : null;
 }
 export async function fetchOperatorJoineds(
   first?: number,
 ): Promise<FullDataResponse | null> {
-  const query = buildQuery({ first });
-  return getJson<FullDataResponse>(`/api/operators${query}`);
+  const query = buildQuery({ limit: first || 20 });
+  const response = await getJson<ApiResponse<any>>(`/operators${query}`);
+  return response ? convertToLegacy(response) : null;
 }
 export async function fetchTenantCreateds(
   first?: number,
 ): Promise<DataResponse | null> {
-  const query = buildQuery({ first });
-  return getJson<DataResponse>(`/api/tenants${query}`);
+  const query = buildQuery({ limit: first || 20 });
+  const response = await getJson<ApiResponse<any>>(`/tenants${query}`);
+  return response ? convertToLegacy(response) : null;
 }
 export async function fetchDocumentCoSignQualifieds(
   first?: number,
 ): Promise<FullDataResponse | null> {
-  const query = buildQuery({ first });
-  return getJson<FullDataResponse>(`/api/document-qualifieds${query}`);
+  const query = buildQuery({ limit: first || 20 });
+  const response = await getJson<ApiResponse<any>>(
+    `/documents/qualifieds${query}`,
+  );
+  return response ? convertToLegacy(response) : null;
 }
 
 export async function fetchTransactionByHash(
   txHash: string,
 ): Promise<ScalarDataResponse<Record<string, unknown>> | null> {
   const query = buildQuery({ txHash });
-  return getJson<ScalarDataResponse<Record<string, unknown>>>(
-    `/api/transaction${query}`,
-  );
+  const response = await getJson<ApiResponse<any>>(`/transaction${query}`);
+  return response ? { success: true, data: response.data } : null;
 }
 
 export async function fetchNonceCountByTenantAndOperator(
@@ -95,7 +141,8 @@ export async function fetchNonceCountByTenantAndOperator(
   operator: string,
 ): Promise<ScalarDataResponse<number> | null> {
   const query = buildQuery({ tenantId, operator });
-  return getJson<ScalarDataResponse<number>>(`/api/nonce-count${query}`);
+  const response = await getJson<ApiResponse<any>>(`/nonce${query}`);
+  return response ? { success: true, data: response.data || 0 } : null;
 }
 
 export async function fetchNonceInfoByTenantAndSigner(
@@ -103,25 +150,24 @@ export async function fetchNonceInfoByTenantAndSigner(
   signer: string,
 ): Promise<ScalarDataResponse<Record<string, unknown>> | null> {
   const query = buildQuery({ tenantId, signer });
-  return getJson<ScalarDataResponse<Record<string, unknown>>>(
-    `/api/nonce${query}`,
-  );
+  const response = await getJson<ApiResponse<any>>(`/nonce${query}`);
+  return response ? { success: true, data: response.data || {} } : null;
 }
 
 export async function fetchNonceConsumeds(
   first?: number,
 ): Promise<DataResponse | null> {
-  const query = buildQuery({ first });
-  return getJson<DataResponse>(`/api/nonces${query}`);
+  const query = buildQuery({ limit: first || 20 });
+  const response = await getJson<ApiResponse<any>>(`/nonces${query}`);
+  return response ? convertToLegacy(response) : null;
 }
 
 export async function fetchTenantInfoById(
   tenantId: string,
 ): Promise<ScalarDataResponse<Record<string, unknown>> | null> {
-  const query = buildQuery({ tenantId });
-  return getJson<ScalarDataResponse<Record<string, unknown>>>(
-    `/api/tenant${query}`,
-  );
+  const query = buildQuery({ id: tenantId });
+  const response = await getJson<ApiResponse<any>>(`/tenant${query}`);
+  return response ? { success: true, data: response.data || {} } : null;
 }
 
 export async function fetchOperatorInfoById(
@@ -129,9 +175,8 @@ export async function fetchOperatorInfoById(
   operator: string,
 ): Promise<ScalarDataResponse<Record<string, unknown>> | null> {
   const query = buildQuery({ tenantId, operator });
-  return getJson<ScalarDataResponse<Record<string, unknown>>>(
-    `/api/operator${query}`,
-  );
+  const response = await getJson<ApiResponse<any>>(`/operator${query}`);
+  return response ? { success: true, data: response.data || {} } : null;
 }
 
 export async function fetchDocumentInfoById(
@@ -139,77 +184,76 @@ export async function fetchDocumentInfoById(
   fileHash: string,
 ): Promise<ScalarDataResponse<Record<string, unknown>> | null> {
   const query = buildQuery({ tenantId, fileHash });
-  return getJson<ScalarDataResponse<Record<string, unknown>>>(
-    `/api/document${query}`,
-  );
+  const response = await getJson<ApiResponse<any>>(`/document${query}`);
+  return response ? { success: true, data: response.data || {} } : null;
 }
 
 export async function fetchPenaltyByTenantId(
   tenantId: string,
 ): Promise<ScalarDataResponse<Record<string, unknown>> | null> {
-  const query = buildQuery({ tenantId });
-  return getJson<ScalarDataResponse<Record<string, unknown>>>(
-    `/api/penalty${query}`,
-  );
+  const query = buildQuery({ id: tenantId });
+  const response = await getJson<ApiResponse<any>>(`/penalty${query}`);
+  return response ? { success: true, data: response.data || {} } : null;
 }
 
 export async function fetchViolationPenaltyUpdateds(
   first?: number,
 ): Promise<ScalarDataResponse<Array<Record<string, unknown>>> | null> {
-  const query = buildQuery({ first });
-  return getJson<ScalarDataResponse<Array<Record<string, unknown>>>>(
-    `/api/penalties${query}`,
-  );
+  const query = buildQuery({ limit: first || 20 });
+  const response = await getJson<ApiResponse<any>>(`/penalties${query}`);
+  return response ? { success: true, data: response.data || [] } : null;
 }
 export async function fetchCoSignOperatorConfigureds(
   first?: number,
 ): Promise<ScalarDataResponse<Array<Record<string, unknown>>> | null> {
-  const query = buildQuery({ first });
-  return getJson<ScalarDataResponse<Array<Record<string, unknown>>>>(
-    `/api/cosign-operators${query}`,
-  );
+  const query = buildQuery({ limit: first || 20 });
+  const response = await getJson<ApiResponse<any>>(`/cosign-operators${query}`);
+  return response ? { success: true, data: response.data || [] } : null;
 }
 export async function fetchCoSignPolicyUpdateds(
   first?: number,
 ): Promise<ScalarDataResponse<Array<Record<string, unknown>>> | null> {
-  const query = buildQuery({ first });
-  return getJson<ScalarDataResponse<Array<Record<string, unknown>>>>(
-    `/api/cosign-policies${query}`,
-  );
+  const query = buildQuery({ limit: first || 20 });
+  const response = await getJson<ApiResponse<any>>(`/cosign-policies${query}`);
+  return response ? { success: true, data: response.data || [] } : null;
 }
 export async function fetchOperatorHardSlasheds(
   first?: number,
 ): Promise<ScalarDataResponse<Array<Record<string, unknown>>> | null> {
-  const query = buildQuery({ first });
-  return getJson<ScalarDataResponse<Array<Record<string, unknown>>>>(
-    `/api/operator-hard-slasheds${query}`,
+  const query = buildQuery({ limit: first || 20 });
+  const response = await getJson<ApiResponse<any>>(
+    `/operators/hard-slashed${query}`,
   );
+  return response ? { success: true, data: response.data || [] } : null;
 }
 export async function fetchOperatorSoftSlasheds(
   first?: number,
 ): Promise<ScalarDataResponse<Array<Record<string, unknown>>> | null> {
-  const query = buildQuery({ first });
-  return getJson<ScalarDataResponse<Array<Record<string, unknown>>>>(
-    `/api/operator-soft-slasheds${query}`,
+  const query = buildQuery({ limit: first || 20 });
+  const response = await getJson<ApiResponse<any>>(
+    `/operators/soft-slashed${query}`,
   );
+  return response ? { success: true, data: response.data || [] } : null;
 }
 
 export async function fetchOperatorUnstakeRequesteds(
   first?: number,
 ): Promise<ScalarDataResponse<Array<Record<string, unknown>>> | null> {
-  const query = buildQuery({ first });
-  return getJson<ScalarDataResponse<Array<Record<string, unknown>>>>(
-    `/api/operator-unstake-requesteds${query}`,
+  const query = buildQuery({ limit: first || 20 });
+  const response = await getJson<ApiResponse<any>>(
+    `/operators/unstake-requested${query}`,
   );
+  return response ? { success: true, data: response.data || [] } : null;
 }
 
 export async function fetchOperatorUnstakeds(
   first?: number,
 ): Promise<ScalarDataResponse<Array<Record<string, unknown>>> | null> {
-  const query = buildQuery({ first });
-  return getJson<ScalarDataResponse<Array<Record<string, unknown>>>>(
-    `/api/operator-unstakeds${query}`,
+  const query = buildQuery({ limit: first || 20 });
+  const response = await getJson<ApiResponse<any>>(
+    `/operators/unstaked${query}`,
   );
+  return response ? { success: true, data: response.data || [] } : null;
 }
 
 export async function fetchTenantRuntimeConfig(
@@ -218,22 +262,25 @@ export async function fetchTenantRuntimeConfig(
   minOperatorStake: number;
   unstakeCooldown: number;
 }> | null> {
-  const query = buildQuery({ tenantId });
-  return getJson<
-    ScalarDataResponse<{
-      minOperatorStake: number;
-      unstakeCooldown: number;
-    }>
-  >(`/api/tenant-runtime-config${query}`);
+  const query = buildQuery({ id: tenantId });
+  const response = await getJson<ApiResponse<any>>(`/tenant-config${query}`);
+  return response
+    ? {
+        success: true,
+        data: response.data || {
+          minOperatorStake: 0,
+          unstakeCooldown: 0,
+        },
+      }
+    : null;
 }
 
 export async function fetchTenantCurrentInfo(
   tenantId: string,
 ): Promise<ScalarDataResponse<Record<string, unknown> | null> | null> {
-  const query = buildQuery({ tenantId });
-  return getJson<ScalarDataResponse<Record<string, unknown> | null>>(
-    `/api/tenant-info${query}`,
-  );
+  const query = buildQuery({ id: tenantId });
+  const response = await getJson<ApiResponse<any>>(`/tenant-info${query}`);
+  return response ? { success: true, data: response.data || null } : null;
 }
 
 export async function fetchOperatorCurrentStatus(
@@ -241,9 +288,8 @@ export async function fetchOperatorCurrentStatus(
   operator: string,
 ): Promise<ScalarDataResponse<Record<string, unknown> | null> | null> {
   const query = buildQuery({ tenantId, operator });
-  return getJson<ScalarDataResponse<Record<string, unknown> | null>>(
-    `/api/operator-status${query}`,
-  );
+  const response = await getJson<ApiResponse<any>>(`/operator-status${query}`);
+  return response ? { success: true, data: response.data || null } : null;
 }
 
 export async function fetchDocumentCurrentStatus(
@@ -251,7 +297,6 @@ export async function fetchDocumentCurrentStatus(
   fileHash: string,
 ): Promise<ScalarDataResponse<Record<string, unknown> | null> | null> {
   const query = buildQuery({ tenantId, fileHash });
-  return getJson<ScalarDataResponse<Record<string, unknown> | null>>(
-    `/api/document-status${query}`,
-  );
+  const response = await getJson<ApiResponse<any>>(`/document-status${query}`);
+  return response ? { success: true, data: response.data || null } : null;
 }

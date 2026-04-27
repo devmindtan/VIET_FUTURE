@@ -79,12 +79,3 @@ export class BlockchainQueryClient {
     return results;
   }
 }
-// async function main() {
-//   const test = new BlockchainGraphQueryClient();
-//   const result = await test.getSelectedQueries(
-//     ["getTenantsByUsers"],
-//     "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",
-//   );
-//   console.log(result);
-// }
-// main();
