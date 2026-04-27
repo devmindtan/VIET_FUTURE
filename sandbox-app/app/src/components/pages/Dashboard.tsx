@@ -35,7 +35,7 @@ import {
 
 function StatCard({ label, value, icon, color, sub }: StatCardProps) {
   return (
-    <Card withBorder radius="md" padding="lg">
+    <Card radius="md" padding="lg" className="vp-card">
       <Group justify="space-between" align="flex-start">
         <Stack gap={4}>
           <Text size="sm" c="dimmed">
@@ -129,7 +129,12 @@ export function Dashboard({ session }: { session: WalletSession }) {
 
   return (
     <Stack gap="xl">
-      <Title order={3}>{title}</Title>
+      <Stack gap={4}>
+        <Title order={3}>{title}</Title>
+        <Text size="sm" c="dimmed">
+          Theo dõi sức khỏe hệ thống theo thời gian thực từ reader và graph.
+        </Text>
+      </Stack>
 
       <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md">
         <StatCard
@@ -165,54 +170,56 @@ export function Dashboard({ session }: { session: WalletSession }) {
       <Grid>
         {/* Recent documents */}
         <Grid.Col span={{ base: 12, md: 12 }}>
-          <Card withBorder radius="md" padding="md">
+          <Card radius="md" padding="md" className="vp-card">
             <Text fw={600} mb="md">
               Tài liệu gần đây
             </Text>
-            <Table highlightOnHover verticalSpacing="xs">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Document ID</Table.Th>
-                  <Table.Th>Tenant</Table.Th>
-                  <Table.Th>Loại tài liệu</Table.Th>
-                  <Table.Th>Phiên bản</Table.Th>
-                  <Table.Th>Thời gian</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {documentAnchoreds?.data.map((doc: any) => (
-                  <Table.Tr key={doc.id}>
-                    <Table.Td>
-                      <Text size="sm" ff="monospace">
-                        {doc.id.substring(0, 10)}...
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      {(doc.tenantId || doc.tenant).substring(0, 10)}...
-                    </Table.Td>
-                    <Table.Td>{doc.docType}</Table.Td>
-                    <Table.Td>{doc.version || 0}</Table.Td>
-                    <Table.Td>
-                      <Text size="xs" c="dimmed">
-                        {new Date(
-                          Number(doc.blockTimestamp) * 1000,
-                        ).toLocaleString()}
-                      </Text>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-
-                {documentAnchoreds?.total === 0 && (
+            <Table.ScrollContainer minWidth={760}>
+              <Table highlightOnHover verticalSpacing="xs" withTableBorder>
+                <Table.Thead>
                   <Table.Tr>
-                    <Table.Td colSpan={5} align="center" py="xl">
-                      <Text size="sm" c="dimmed">
-                        Chưa tìm thấy tài liệu nào được ghi nhận trên Graph.
-                      </Text>
-                    </Table.Td>
+                    <Table.Th>Document ID</Table.Th>
+                    <Table.Th>Tenant</Table.Th>
+                    <Table.Th>Loại tài liệu</Table.Th>
+                    <Table.Th>Phiên bản</Table.Th>
+                    <Table.Th>Thời gian</Table.Th>
                   </Table.Tr>
-                )}
-              </Table.Tbody>
-            </Table>
+                </Table.Thead>
+                <Table.Tbody>
+                  {documentAnchoreds?.data.map((doc: any) => (
+                    <Table.Tr key={doc.id}>
+                      <Table.Td>
+                        <Text size="sm" className="vp-mono">
+                          {doc.id.substring(0, 10)}...
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        {(doc.tenantId || doc.tenant).substring(0, 10)}...
+                      </Table.Td>
+                      <Table.Td>{doc.docType}</Table.Td>
+                      <Table.Td>{doc.version || 0}</Table.Td>
+                      <Table.Td>
+                        <Text size="xs" c="dimmed">
+                          {new Date(
+                            Number(doc.blockTimestamp) * 1000,
+                          ).toLocaleString()}
+                        </Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+
+                  {documentAnchoreds?.total === 0 && (
+                    <Table.Tr>
+                      <Table.Td colSpan={5} align="center" py="xl">
+                        <Text size="sm" c="dimmed">
+                          Chưa tìm thấy tài liệu nào được ghi nhận trên Graph.
+                        </Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  )}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
           </Card>
         </Grid.Col>
       </Grid>

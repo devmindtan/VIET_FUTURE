@@ -26,3 +26,4 @@ verzik-sdk
 verzik-sdk/*
 app-route
 .env
+my-agent-skills/*

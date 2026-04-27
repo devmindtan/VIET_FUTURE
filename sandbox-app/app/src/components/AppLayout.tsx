@@ -214,11 +214,12 @@ export function AppLayout() {
 
   return (
     <AppShell
-      header={{ height: 56 }}
-      navbar={{ width: 230, breakpoint: "sm", collapsed: { mobile: !opened } }}
+      className="vp-shell"
+      header={{ height: 64 }}
+      navbar={{ width: 260, breakpoint: "sm", collapsed: { mobile: !opened } }}
       padding="md"
     >
-      <AppShell.Header>
+      <AppShell.Header className="vp-header">
         <Group h="100%" px="md" justify="space-between">
           <Group gap="xs">
             <Burger
@@ -227,15 +228,20 @@ export function AppLayout() {
               hiddenFrom="sm"
               size="sm"
             />
-            <Group gap={8}>
+            <Group gap={10}>
               <img
                 src="/verzik.svg"
                 alt="Voucher Protocol Logo"
-                style={{ width: 22, height: 22 }}
+                style={{ width: 26, height: 26 }}
               />
-              <Text fw={700} size="md">
-                VoucherProtocol
-              </Text>
+              <Stack gap={0}>
+                <Text fw={700} size="md" lh={1.1}>
+                  VoucherProtocol Sandbox
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Operational console for tenant, operator and treasury flows
+                </Text>
+              </Stack>
             </Group>
           </Group>
 
@@ -258,11 +264,11 @@ export function AppLayout() {
                 Đăng nhập
               </Button>
             )}
-            <Badge variant="dot" color="teal" size="sm">
+            <Badge variant="dot" color="cyan" size="sm">
               Localnet
             </Badge>
             <Badge
-              color={effectiveSession.primaryRole === "guest" ? "gray" : "blue"}
+              color={effectiveSession.primaryRole === "guest" ? "gray" : "cyan"}
               variant="light"
             >
               {getRoleLabel(effectiveSession)}
@@ -270,7 +276,7 @@ export function AppLayout() {
             <Avatar
               size={30}
               radius="xl"
-              color={effectiveSession.primaryRole === "owner" ? "blue" : "teal"}
+              color={effectiveSession.primaryRole === "owner" ? "cyan" : "teal"}
             >
               {effectiveSession.primaryRole.slice(0, 1).toUpperCase()}
             </Avatar>
@@ -278,7 +284,10 @@ export function AppLayout() {
         </Group>
       </AppShell.Header>
 
-      <AppShell.Navbar p="xs">
+      <AppShell.Navbar p="xs" className="vp-navbar">
+        <Text fw={600} size="sm" px="xs" pt="xs" pb={4}>
+          Điều hướng
+        </Text>
         <ScrollArea type="never" flex={1}>
           <Stack gap={2} pt={4}>
             {filteredNavItems.map((item) => (
@@ -288,7 +297,13 @@ export function AppLayout() {
                 leftSection={item.icon}
                 active={activePage === item.id}
                 onClick={() => setActivePage(item.id)}
-                styles={{ root: { borderRadius: 6 } }}
+                variant="filled"
+                styles={{
+                  root: { borderRadius: 10 },
+                  section: {
+                    color: activePage === item.id ? "white" : undefined,
+                  },
+                }}
               />
             ))}
           </Stack>
@@ -299,13 +314,14 @@ export function AppLayout() {
           label="Cài đặt"
           leftSection={<GearIcon size={18} />}
           onClick={() => setSettingsOpened(true)}
-          styles={{ root: { borderRadius: 6 } }}
+          variant="filled"
+          styles={{ root: { borderRadius: 10 } }}
         />
       </AppShell.Navbar>
 
-      <AppShell.Main>
-        <Box maw={1100} mx="auto">
-          <Paper withBorder radius="md" p="md" mb="md">
+      <AppShell.Main className="vp-main">
+        <Box maw={1160} mx="auto" py={4}>
+          <Paper radius="md" p="lg" mb="md" className="vp-card vp-section">
             <Group justify="space-between" align="center">
               <Group gap="sm">
                 <PlugIcon size={18} />
@@ -318,15 +334,15 @@ export function AppLayout() {
                 <Text size="sm" c="dimmed">
                   Địa chỉ protocol
                 </Text>
-                <Text size="sm" ff="monospace">
-                  {PROTOCOL_ADDRESS}
+                <Text size="sm" className="vp-mono">
+                  {PROTOCOL_ADDRESS ?? "-"}
                 </Text>
               </Group>
               <Group justify="space-between">
                 <Text size="sm" c="dimmed">
                   Địa chỉ ví
                 </Text>
-                <Text size="sm" ff="monospace">
+                <Text size="sm" className="vp-mono">
                   {effectiveSession.address}
                 </Text>
               </Group>
@@ -340,7 +356,7 @@ export function AppLayout() {
                 <Text size="sm" c="dimmed">
                   Số dư
                 </Text>
-                <Text size="sm" ff="monospace">
+                <Text size="sm" className="vp-mono">
                   {balanceEth} ETH
                 </Text>
               </Group>
@@ -350,10 +366,18 @@ export function AppLayout() {
                 </Text>
                 <Text size="sm">{networkName}</Text>
               </Group>
+              <Group justify="space-between">
+                <Text size="sm" c="dimmed">
+                  Stake
+                </Text>
+                <Text size="sm" className="vp-mono">
+                  {stake || 0}
+                </Text>
+              </Group>
             </Stack>
           </Paper>
 
-          <Paper withBorder radius="md" p="md" mb="md">
+          <Paper radius="md" p="lg" mb="md" className="vp-card vp-section">
             <Group justify="space-between" align="flex-start">
               <Box>
                 <Group gap="xs" mb={6}>

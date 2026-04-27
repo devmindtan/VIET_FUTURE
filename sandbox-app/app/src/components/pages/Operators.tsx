@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Stack,
   Title,
@@ -387,62 +387,63 @@ export function Operators({
   const [detail, setDetail] = useState<OperatorTableRow | null>(null);
   const [apiRows, setApiRows] = useState<OperatorTableRow[]>([]);
   const [nonceRows, setNonceRows] = useState<NonceConsumedRow[]>([]);
+  const [loadingRows, setLoadingRows] = useState(false);
 
-  useEffect(() => {
-    const loadOperators = async () => {
-      try {
-        const [operatorResponse, nonceResponse] = await Promise.all([
-          fetchOperatorJoineds(),
-          fetchNonceConsumeds(),
-        ]);
+  const loadOperators = useCallback(async () => {
+    setLoadingRows(true);
+    try {
+      const [operatorResponse, nonceResponse] = await Promise.all([
+        fetchOperatorJoineds(),
+        fetchNonceConsumeds(),
+      ]);
 
-        const list = operatorResponse?.data?.data;
+      const list = operatorResponse?.data?.data;
 
-        if (Array.isArray(list)) {
-          const mapped = list.map((item) =>
-            toOperatorTableRow(item as Record<string, unknown>, tenantId),
-          );
-          const statusByKey = new Map<string, boolean>();
-          const statusRequests = mapped
-            .filter((item) => item.tenantId && item.walletAddress)
-            .map(async (item) => {
-              const detail = await fetchOperatorInfoById(
-                item.tenantId,
-                item.walletAddress,
-              );
-              const history = detail?.data?.operatorStatusUpdateds;
-              if (Array.isArray(history) && history.length > 0) {
-                const latest = history[0] as Record<string, unknown>;
-                statusByKey.set(
-                  `${item.tenantId}-${item.walletAddress}`,
-                  latest.isActive === true || latest.isActive === "true",
-                );
-              }
-            });
-          await Promise.all(statusRequests);
-
-          setApiRows(
-            mapped.map((item) => ({
-              ...item,
-              isActive:
-                statusByKey.get(`${item.tenantId}-${item.walletAddress}`) ??
-                item.isActive,
-            })),
-          );
-
-          if (nonceResponse?.success && Array.isArray(nonceResponse.data)) {
-            setNonceRows(
-              nonceResponse.data.map((item) =>
-                toNonceConsumedRow(item as Record<string, unknown>),
-              ),
+      if (Array.isArray(list)) {
+        const mapped = list.map((item) =>
+          toOperatorTableRow(item as Record<string, unknown>, tenantId),
+        );
+        const statusByKey = new Map<string, boolean>();
+        const statusRequests = mapped
+          .filter((item) => item.tenantId && item.walletAddress)
+          .map(async (item) => {
+            const detail = await fetchOperatorInfoById(
+              item.tenantId,
+              item.walletAddress,
             );
-          }
-          return;
-        }
-      } catch (error) {
-        console.error("Lỗi fetch operator-joineds:", error);
-      }
+            const history = detail?.data?.operatorStatusUpdateds;
+            if (Array.isArray(history) && history.length > 0) {
+              const latest = history[0] as Record<string, unknown>;
+              statusByKey.set(
+                `${item.tenantId}-${item.walletAddress}`,
+                latest.isActive === true || latest.isActive === "true",
+              );
+            }
+          });
+        await Promise.all(statusRequests);
 
+        setApiRows(
+          mapped.map((item) => ({
+            ...item,
+            isActive:
+              statusByKey.get(`${item.tenantId}-${item.walletAddress}`) ??
+              item.isActive,
+          })),
+        );
+
+        if (nonceResponse?.success && Array.isArray(nonceResponse.data)) {
+          setNonceRows(
+            nonceResponse.data.map((item) =>
+              toNonceConsumedRow(item as Record<string, unknown>),
+            ),
+          );
+        } else {
+          setNonceRows([]);
+        }
+        return;
+      }
+    } catch (error) {
+      console.error("Lỗi fetch operator-joineds:", error);
       setApiRows(
         operatorsData.map((operator) => ({
           id: operator.walletAddress,
@@ -456,10 +457,14 @@ export function Operators({
       );
 
       setNonceRows([]);
-    };
-
-    loadOperators();
+    } finally {
+      setLoadingRows(false);
+    }
   }, [operatorsData, tenantId]);
+
+  useEffect(() => {
+    loadOperators();
+  }, [loadOperators]);
 
   const filtered = tenantId
     ? apiRows.filter((item) => item.tenantId === tenantId)
@@ -471,15 +476,27 @@ export function Operators({
 
   return (
     <Stack gap="xl">
-      <Group justify="space-between">
-        <Title order={3}>
-          {tenantId
-            ? `Operators · Tenant #${shortBytes32(tenantId)}`
-            : "Quản lý Operators"}
-        </Title>
+      <Group justify="space-between" align="flex-start">
+        <Stack gap={2}>
+          <Title order={3}>
+            {tenantId
+              ? `Operators · Tenant #${shortBytes32(tenantId)}`
+              : "Quản lý Operators"}
+          </Title>
+          <Text size="sm" c="dimmed">
+            Theo dõi stake, trạng thái hoạt động và vòng đời nonce của từng
+            operator.
+          </Text>
+        </Stack>
         <Group gap="xs">
           <Tooltip label="Làm mới">
-            <ActionIcon variant="default" size="lg">
+            <ActionIcon
+              variant="default"
+              size="lg"
+              onClick={loadOperators}
+              loading={loadingRows}
+              aria-label="Làm mới danh sách operator"
+            >
               <ArrowClockwiseIcon size={16} />
             </ActionIcon>
           </Tooltip>
@@ -512,119 +529,142 @@ export function Operators({
         </Tabs.List>
 
         <Tabs.Panel value="operators">
-          <Card withBorder radius="md" padding={0}>
-            <Table highlightOnHover verticalSpacing="sm">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Operator</Table.Th>
-                  <Table.Th>Tenant</Table.Th>
-                  <Table.Th>Stake</Table.Th>
-                  <Table.Th>Metadata</Table.Th>
-                  <Table.Th>Trạng thái mới nhất</Table.Th>
-                  <Table.Th>Thời gian</Table.Th>
-                  <Table.Th />
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {filtered.map((op) => (
-                  <Table.Tr key={op.id || op.walletAddress}>
-                    <Table.Td>
-                      <Group gap="xs" wrap="nowrap">
-                        <Avatar size="sm" radius="xl" color="teal">
-                          {op.walletAddress[2]}
-                        </Avatar>
-                        <CopyableValue value={op.walletAddress} mono />
-                      </Group>
-                    </Table.Td>
-                    <Table.Td>
-                      <CopyableValue value={op.tenantId} mono />
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm" ff="monospace">
-                        {op.stakeAmount}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm">{op.metadata || "-"}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Badge
-                        color={
-                          STATUS_COLOR[op.isActive ? "ACTIVE" : "INACTIVE"]
-                        }
-                        size="sm"
-                        variant="light"
-                      >
-                        {op.isActive === undefined
-                          ? "-"
-                          : op.isActive
-                            ? "ACTIVE"
-                            : "INACTIVE"}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="xs" c="dimmed">
-                        {new Date(
-                          Number(op.blockTimestamp || "0") * 1000,
-                        ).toLocaleString()}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Tooltip label="Xem chi tiết">
-                        <ActionIcon
-                          size="sm"
-                          variant="subtle"
-                          onClick={() => setDetail(op)}
-                        >
-                          <EyeIcon size={14} />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Table.Td>
+          <Card radius="md" padding={0} className="vp-card vp-section">
+            <Table.ScrollContainer minWidth={980}>
+              <Table highlightOnHover verticalSpacing="sm" withTableBorder>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Operator</Table.Th>
+                    <Table.Th>Tenant</Table.Th>
+                    <Table.Th>Stake</Table.Th>
+                    <Table.Th>Metadata</Table.Th>
+                    <Table.Th>Trạng thái mới nhất</Table.Th>
+                    <Table.Th>Thời gian</Table.Th>
+                    <Table.Th />
                   </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+                </Table.Thead>
+                <Table.Tbody>
+                  {filtered.length === 0 ? (
+                    <Table.Tr>
+                      <Table.Td colSpan={7}>
+                        <Text ta="center" c="dimmed" py="md">
+                          Chưa có operator để hiển thị.
+                        </Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  ) : null}
+                  {filtered.map((op) => (
+                    <Table.Tr key={op.id || op.walletAddress}>
+                      <Table.Td>
+                        <Group gap="xs" wrap="nowrap">
+                          <Avatar size="sm" radius="xl" color="teal">
+                            {op.walletAddress?.[2] ?? "O"}
+                          </Avatar>
+                          <CopyableValue value={op.walletAddress} mono />
+                        </Group>
+                      </Table.Td>
+                      <Table.Td>
+                        <CopyableValue value={op.tenantId} mono />
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" ff="monospace">
+                          {op.stakeAmount}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">{op.metadata || "-"}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge
+                          color={
+                            STATUS_COLOR[op.isActive ? "ACTIVE" : "INACTIVE"]
+                          }
+                          size="sm"
+                          variant="light"
+                        >
+                          {op.isActive === undefined
+                            ? "-"
+                            : op.isActive
+                              ? "ACTIVE"
+                              : "INACTIVE"}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="xs" c="dimmed">
+                          {new Date(
+                            Number(op.blockTimestamp || "0") * 1000,
+                          ).toLocaleString()}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Tooltip label="Xem chi tiết">
+                          <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            onClick={() => setDetail(op)}
+                            aria-label="Xem chi tiết operator"
+                          >
+                            <EyeIcon size={14} />
+                          </ActionIcon>
+                        </Tooltip>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
           </Card>
         </Tabs.Panel>
 
         <Tabs.Panel value="nonces">
-          <Card withBorder radius="md" padding={0}>
-            <Table highlightOnHover verticalSpacing="sm">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Tenant</Table.Th>
-                  <Table.Th>Signer</Table.Th>
-                  <Table.Th>Old Nonce</Table.Th>
-                  <Table.Th>New Nonce</Table.Th>
-                  <Table.Th>Tx Hash</Table.Th>
-                  <Table.Th>Thời gian</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {filteredNonces.map((row) => (
-                  <Table.Tr key={row.id}>
-                    <Table.Td>
-                      <CopyableValue value={row.tenantId} mono />
-                    </Table.Td>
-                    <Table.Td>
-                      <CopyableValue value={row.signer} mono />
-                    </Table.Td>
-                    <Table.Td>{row.oldNonce}</Table.Td>
-                    <Table.Td>{row.newNonce}</Table.Td>
-                    <Table.Td>
-                      <CopyableValue value={row.transactionHash} mono />
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="xs" c="dimmed">
-                        {new Date(
-                          Number(row.blockTimestamp || "0") * 1000,
-                        ).toLocaleString()}
-                      </Text>
-                    </Table.Td>
+          <Card radius="md" padding={0} className="vp-card vp-section">
+            <Table.ScrollContainer minWidth={920}>
+              <Table highlightOnHover verticalSpacing="sm" withTableBorder>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Tenant</Table.Th>
+                    <Table.Th>Signer</Table.Th>
+                    <Table.Th>Old Nonce</Table.Th>
+                    <Table.Th>New Nonce</Table.Th>
+                    <Table.Th>Tx Hash</Table.Th>
+                    <Table.Th>Thời gian</Table.Th>
                   </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+                </Table.Thead>
+                <Table.Tbody>
+                  {filteredNonces.length === 0 ? (
+                    <Table.Tr>
+                      <Table.Td colSpan={6}>
+                        <Text ta="center" c="dimmed" py="md">
+                          Chưa có lịch sử nonce để hiển thị.
+                        </Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  ) : null}
+                  {filteredNonces.map((row) => (
+                    <Table.Tr key={row.id}>
+                      <Table.Td>
+                        <CopyableValue value={row.tenantId} mono />
+                      </Table.Td>
+                      <Table.Td>
+                        <CopyableValue value={row.signer} mono />
+                      </Table.Td>
+                      <Table.Td>{row.oldNonce}</Table.Td>
+                      <Table.Td>{row.newNonce}</Table.Td>
+                      <Table.Td>
+                        <CopyableValue value={row.transactionHash} mono />
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="xs" c="dimmed">
+                          {new Date(
+                            Number(row.blockTimestamp || "0") * 1000,
+                          ).toLocaleString()}
+                        </Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
           </Card>
         </Tabs.Panel>
       </Tabs>

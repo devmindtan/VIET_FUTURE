@@ -420,9 +420,11 @@ export function Tenants({
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState<TenantTableRow | null>(null);
   const [tenantRows, setTenantRows] = useState<TenantTableRow[]>([]);
+  const [loadingRows, setLoadingRows] = useState(false);
 
   useEffect(() => {
     const loadTenantRows = async () => {
+      setLoadingRows(true);
       try {
         const response = await fetchTenantCreateds();
         if (response?.success && Array.isArray(response.data)) {
@@ -435,6 +437,8 @@ export function Tenants({
         }
       } catch (error) {
         console.error("Lỗi fetch tenant-createds:", error);
+      } finally {
+        setLoadingRows(false);
       }
 
       const fallbackRows = tenants.map((tenant) =>
@@ -452,6 +456,7 @@ export function Tenants({
 
   const handleRefresh = async () => {
     try {
+      setLoadingRows(true);
       const response = await fetchTenantCreateds();
       if (response?.success && Array.isArray(response.data)) {
         setTenantRows(
@@ -462,18 +467,32 @@ export function Tenants({
       }
     } catch (error) {
       console.error("Lỗi refresh tenant-createds:", error);
+    } finally {
+      setLoadingRows(false);
     }
   };
 
   return (
     <Stack gap="xl">
-      <Group justify="space-between">
-        <Title order={3}>
-          {tenantId ? `Tenant #${shortBytes32(tenantId)}` : "Quản lý Tenants"}
-        </Title>
+      <Group justify="space-between" align="flex-start">
+        <Stack gap={2}>
+          <Title order={3}>
+            {tenantId ? `Tenant #${shortBytes32(tenantId)}` : "Quản lý Tenants"}
+          </Title>
+          <Text size="sm" c="dimmed">
+            Giám sát danh sách tenant, thông tin điều phối và treasury theo từng
+            phạm vi vận hành.
+          </Text>
+        </Stack>
         <Group gap="xs">
           <Tooltip label="Làm mới">
-            <ActionIcon variant="default" size="lg" onClick={handleRefresh}>
+            <ActionIcon
+              variant="default"
+              size="lg"
+              onClick={handleRefresh}
+              loading={loadingRows}
+              aria-label="Làm mới danh sách tenant"
+            >
               <ArrowClockwiseIcon size={16} />
             </ActionIcon>
           </Tooltip>
@@ -489,68 +508,84 @@ export function Tenants({
         </Group>
       </Group>
 
-      <Card withBorder radius="md" padding={0}>
-        <Table highlightOnHover verticalSpacing="sm">
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>ID</Table.Th>
-              <Table.Th>Tenant ID</Table.Th>
-              <Table.Th>Admin</Table.Th>
-              <Table.Th>Manager</Table.Th>
-              <Table.Th>Treasury</Table.Th>
-              <Table.Th>Ngày tạo</Table.Th>
-              <Table.Th />
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {rows.map((t) => (
-              <Table.Tr key={t.id}>
-                <Table.Td>
-                  <CopyableValue value={t.id} mono />
-                </Table.Td>
-                <Table.Td>
-                  <CopyableValue value={t.tenantId} mono />
-                </Table.Td>
-                <Table.Td>
-                  <CopyableValue value={t.admin} mono />
-                </Table.Td>
-                <Table.Td>
-                  <CopyableValue value={t.manager} mono />
-                </Table.Td>
-                <Table.Td>
-                  <CopyableValue value={t.treasury} mono />
-                </Table.Td>
-                <Table.Td>
-                  <Text size="xs" c="dimmed">
-                    {new Date(
-                      Number(t.blockTimestamp) * 1000,
-                    ).toLocaleDateString()}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Group gap={4}>
-                    <Tooltip label="Xem chi tiết">
-                      <ActionIcon
-                        size="sm"
-                        variant="subtle"
-                        onClick={() => setDetail(t)}
-                      >
-                        <EyeIcon size={14} />
-                      </ActionIcon>
-                    </Tooltip>
-                    {canEditTenantConfig && (
-                      <Tooltip label="Chỉnh sửa">
-                        <ActionIcon size="sm" variant="subtle">
-                          <PencilSimpleIcon size={14} />
+      <Card radius="md" padding={0} className="vp-card vp-section">
+        <Table.ScrollContainer minWidth={960}>
+          <Table highlightOnHover verticalSpacing="sm" withTableBorder>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>ID</Table.Th>
+                <Table.Th>Tenant ID</Table.Th>
+                <Table.Th>Admin</Table.Th>
+                <Table.Th>Manager</Table.Th>
+                <Table.Th>Treasury</Table.Th>
+                <Table.Th>Ngày tạo</Table.Th>
+                <Table.Th />
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {rows.length === 0 ? (
+                <Table.Tr>
+                  <Table.Td colSpan={7}>
+                    <Text ta="center" c="dimmed" py="md">
+                      Chưa có tenant để hiển thị.
+                    </Text>
+                  </Table.Td>
+                </Table.Tr>
+              ) : null}
+              {rows.map((t) => (
+                <Table.Tr key={t.id}>
+                  <Table.Td>
+                    <CopyableValue value={t.id} mono />
+                  </Table.Td>
+                  <Table.Td>
+                    <CopyableValue value={t.tenantId} mono />
+                  </Table.Td>
+                  <Table.Td>
+                    <CopyableValue value={t.admin} mono />
+                  </Table.Td>
+                  <Table.Td>
+                    <CopyableValue value={t.manager} mono />
+                  </Table.Td>
+                  <Table.Td>
+                    <CopyableValue value={t.treasury} mono />
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="xs" c="dimmed">
+                      {new Date(
+                        Number(t.blockTimestamp) * 1000,
+                      ).toLocaleDateString()}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Group gap={4}>
+                      <Tooltip label="Xem chi tiết">
+                        <ActionIcon
+                          size="sm"
+                          variant="subtle"
+                          onClick={() => setDetail(t)}
+                          aria-label="Xem chi tiết tenant"
+                        >
+                          <EyeIcon size={14} />
                         </ActionIcon>
                       </Tooltip>
-                    )}
-                  </Group>
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
+                      {canEditTenantConfig && (
+                        <Tooltip label="Chỉnh sửa">
+                          <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            aria-label="Chỉnh sửa tenant"
+                          >
+                            <PencilSimpleIcon size={14} />
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
+                    </Group>
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </Table.ScrollContainer>
       </Card>
 
       <CreateTenantModal

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Stack,
   Title,
@@ -361,66 +361,73 @@ export function Documents({
   const [qualifiedRows, setQualifiedRows] = useState<DocumentQualifiedRow[]>(
     [],
   );
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const loadDocuments = async () => {
-      try {
-        const [response, qualifiedResponse] = await Promise.all([
-          fetchDocumentAnchoreds(),
-          fetchDocumentCoSignQualifieds(),
-        ]);
+  const loadDocuments = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [response, qualifiedResponse] = await Promise.all([
+        fetchDocumentAnchoreds(),
+        fetchDocumentCoSignQualifieds(),
+      ]);
 
-        const documents = response?.data?.data;
+      const documents = response?.data?.data;
 
-        if (Array.isArray(documents)) {
-          const mapped = documents.map((item) => {
-            const data = item as Record<string, unknown>;
-            return {
-              id: String(data.id ?? ""),
-              cid: String(data.cid ?? ""),
-              fileHash: String(data.fileHash ?? ""),
-              tenantId: String(data.tenantId ?? ""),
-              docType: String(data.docType ?? "-"),
-              version: String(data.version ?? "-"),
-              registeredAt: new Date(
-                Number(data.blockTimestamp ?? 0) * 1000,
-              ).toLocaleString(),
-              transactionHash: String(data.transactionHash ?? ""),
-            } as DocRecord;
-          });
+      if (Array.isArray(documents)) {
+        const mapped = documents.map((item) => {
+          const data = item as Record<string, unknown>;
+          return {
+            id: String(data.id ?? ""),
+            cid: String(data.cid ?? ""),
+            fileHash: String(data.fileHash ?? ""),
+            tenantId: String(data.tenantId ?? ""),
+            docType: String(data.docType ?? "-"),
+            version: String(data.version ?? "-"),
+            registeredAt: new Date(
+              Number(data.blockTimestamp ?? 0) * 1000,
+            ).toLocaleString(),
+            transactionHash: String(data.transactionHash ?? ""),
+          } as DocRecord;
+        });
 
-          setRows(mapped);
-        }
-
-        const qualifiedData = qualifiedResponse?.data?.data;
-        if (Array.isArray(qualifiedData)) {
-          setQualifiedRows(
-            qualifiedData.map((item) => {
-              const row = item as Record<string, unknown>;
-              return {
-                id: String(row.id ?? ""),
-                tenantId: String(row.tenantId ?? ""),
-                fileHash: String(row.fileHash ?? ""),
-                trustedSigners: String(row.trustedSigners ?? "0"),
-                roleMask: String(row.roleMask ?? "0"),
-                blockTimestamp: String(row.blockTimestamp ?? "0"),
-                transactionHash: String(row.transactionHash ?? ""),
-              };
-            }),
-          );
-        }
-
-        return;
-      } catch (error) {
-        console.error("Lỗi fetch document-anchoreds:", error);
+        setRows(mapped);
+      } else {
+        setRows([]);
       }
 
+      const qualifiedData = qualifiedResponse?.data?.data;
+      if (Array.isArray(qualifiedData)) {
+        setQualifiedRows(
+          qualifiedData.map((item) => {
+            const row = item as Record<string, unknown>;
+            return {
+              id: String(row.id ?? ""),
+              tenantId: String(row.tenantId ?? ""),
+              fileHash: String(row.fileHash ?? ""),
+              trustedSigners: String(row.trustedSigners ?? "0"),
+              roleMask: String(row.roleMask ?? "0"),
+              blockTimestamp: String(row.blockTimestamp ?? "0"),
+              transactionHash: String(row.transactionHash ?? ""),
+            };
+          }),
+        );
+      } else {
+        setQualifiedRows([]);
+      }
+
+      return;
+    } catch (error) {
+      console.error("Lỗi fetch document-anchoreds:", error);
       setRows([]);
       setQualifiedRows([]);
-    };
-
-    loadDocuments();
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadDocuments();
+  }, [loadDocuments]);
 
   const filteredRows = tenantId
     ? rows.filter((doc) => doc.tenantId === tenantId)
@@ -429,14 +436,24 @@ export function Documents({
   return (
     <Stack gap="xl">
       <Group justify="space-between">
-        <Title order={3}>
-          {tenantId
-            ? `Tài liệu · Tenant #${shortBytes32(tenantId)}`
-            : "Quản lý Tài liệu"}
-        </Title>
+        <Stack gap={2}>
+          <Title order={3}>
+            {tenantId
+              ? `Tài liệu · Tenant #${shortBytes32(tenantId)}`
+              : "Quản lý Tài liệu"}
+          </Title>
+          <Text size="sm" c="dimmed">
+            Tra cứu vòng đời tài liệu, trạng thái đủ chuẩn và thông tin đồng ký.
+          </Text>
+        </Stack>
         <Group gap="xs">
           <Tooltip label="Làm mới">
-            <ActionIcon variant="default" size="lg">
+            <ActionIcon
+              variant="default"
+              size="lg"
+              onClick={loadDocuments}
+              loading={loading}
+            >
               <ArrowClockwiseIcon size={16} />
             </ActionIcon>
           </Tooltip>
@@ -461,7 +478,7 @@ export function Documents({
         </Group>
       </Group>
 
-      <Card withBorder radius="md" padding={0}>
+      <Card radius="md" padding={0} className="vp-card vp-section">
         <Tabs defaultValue="documents" p="md">
           <Tabs.List mb="md">
             <Tabs.Tab value="documents">
@@ -479,115 +496,119 @@ export function Documents({
           </Tabs.List>
 
           <Tabs.Panel value="documents">
-            <Table highlightOnHover verticalSpacing="sm">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>File Hash</Table.Th>
-                  <Table.Th>Tenant</Table.Th>
-                  <Table.Th>CID</Table.Th>
-                  <Table.Th>Doc Type</Table.Th>
-                  <Table.Th>Version</Table.Th>
-                  <Table.Th>Ngày đăng ký</Table.Th>
-                  <Table.Th />
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {filteredRows.length === 0 ? (
+            <Table.ScrollContainer minWidth={980}>
+              <Table highlightOnHover verticalSpacing="sm" withTableBorder>
+                <Table.Thead>
                   <Table.Tr>
-                    <Table.Td colSpan={7}>
-                      <Text ta="center" c="dimmed" py="md">
-                        Chưa có dữ liệu document để hiển thị.
-                      </Text>
-                    </Table.Td>
+                    <Table.Th>File Hash</Table.Th>
+                    <Table.Th>Tenant</Table.Th>
+                    <Table.Th>CID</Table.Th>
+                    <Table.Th>Doc Type</Table.Th>
+                    <Table.Th>Version</Table.Th>
+                    <Table.Th>Ngày đăng ký</Table.Th>
+                    <Table.Th />
                   </Table.Tr>
-                ) : null}
-                {filteredRows.map((doc) => (
-                  <Table.Tr key={doc.id || doc.fileHash}>
-                    <Table.Td>
-                      <CopyableValue value={doc.fileHash} mono />
-                    </Table.Td>
-                    <Table.Td>
-                      <CopyableValue value={doc.tenantId} mono />
-                    </Table.Td>
-                    <Table.Td>
-                      <CopyableValue value={doc.cid} mono />
-                    </Table.Td>
-                    <Table.Td>
-                      <Badge size="sm" variant="outline">
-                        {doc.docType}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm">{doc.version}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="xs" c="dimmed">
-                        {doc.registeredAt}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Tooltip label="Xem chi tiết">
-                        <ActionIcon
-                          size="sm"
-                          variant="subtle"
-                          onClick={() => setDetail(doc)}
-                        >
-                          <EyeIcon size={14} />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+                </Table.Thead>
+                <Table.Tbody>
+                  {filteredRows.length === 0 ? (
+                    <Table.Tr>
+                      <Table.Td colSpan={7}>
+                        <Text ta="center" c="dimmed" py="md">
+                          Chưa có dữ liệu document để hiển thị.
+                        </Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  ) : null}
+                  {filteredRows.map((doc) => (
+                    <Table.Tr key={doc.id || doc.fileHash}>
+                      <Table.Td>
+                        <CopyableValue value={doc.fileHash} mono />
+                      </Table.Td>
+                      <Table.Td>
+                        <CopyableValue value={doc.tenantId} mono />
+                      </Table.Td>
+                      <Table.Td>
+                        <CopyableValue value={doc.cid} mono />
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge size="sm" variant="outline">
+                          {doc.docType}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">{doc.version}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="xs" c="dimmed">
+                          {doc.registeredAt}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Tooltip label="Xem chi tiết">
+                          <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            onClick={() => setDetail(doc)}
+                          >
+                            <EyeIcon size={14} />
+                          </ActionIcon>
+                        </Tooltip>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
           </Tabs.Panel>
 
           <Tabs.Panel value="qualifieds">
-            <Table highlightOnHover verticalSpacing="sm">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Tenant</Table.Th>
-                  <Table.Th>File Hash</Table.Th>
-                  <Table.Th>Trusted Signers</Table.Th>
-                  <Table.Th>Role Mask</Table.Th>
-                  <Table.Th>Tx Hash</Table.Th>
-                  <Table.Th>Thời gian</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {qualifiedRows.length === 0 ? (
+            <Table.ScrollContainer minWidth={920}>
+              <Table highlightOnHover verticalSpacing="sm" withTableBorder>
+                <Table.Thead>
                   <Table.Tr>
-                    <Table.Td colSpan={6}>
-                      <Text ta="center" c="dimmed" py="md">
-                        Chưa có document qualified để hiển thị.
-                      </Text>
-                    </Table.Td>
+                    <Table.Th>Tenant</Table.Th>
+                    <Table.Th>File Hash</Table.Th>
+                    <Table.Th>Trusted Signers</Table.Th>
+                    <Table.Th>Role Mask</Table.Th>
+                    <Table.Th>Tx Hash</Table.Th>
+                    <Table.Th>Thời gian</Table.Th>
                   </Table.Tr>
-                ) : null}
-                {qualifiedRows.map((row) => (
-                  <Table.Tr key={row.id}>
-                    <Table.Td>
-                      <CopyableValue value={row.tenantId} mono />
-                    </Table.Td>
-                    <Table.Td>
-                      <CopyableValue value={row.fileHash} mono />
-                    </Table.Td>
-                    <Table.Td>{row.trustedSigners}</Table.Td>
-                    <Table.Td>{row.roleMask}</Table.Td>
-                    <Table.Td>
-                      <CopyableValue value={row.transactionHash} mono />
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="xs" c="dimmed">
-                        {new Date(
-                          Number(row.blockTimestamp || "0") * 1000,
-                        ).toLocaleString()}
-                      </Text>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+                </Table.Thead>
+                <Table.Tbody>
+                  {qualifiedRows.length === 0 ? (
+                    <Table.Tr>
+                      <Table.Td colSpan={6}>
+                        <Text ta="center" c="dimmed" py="md">
+                          Chưa có document qualified để hiển thị.
+                        </Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  ) : null}
+                  {qualifiedRows.map((row) => (
+                    <Table.Tr key={row.id}>
+                      <Table.Td>
+                        <CopyableValue value={row.tenantId} mono />
+                      </Table.Td>
+                      <Table.Td>
+                        <CopyableValue value={row.fileHash} mono />
+                      </Table.Td>
+                      <Table.Td>{row.trustedSigners}</Table.Td>
+                      <Table.Td>{row.roleMask}</Table.Td>
+                      <Table.Td>
+                        <CopyableValue value={row.transactionHash} mono />
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="xs" c="dimmed">
+                          {new Date(
+                            Number(row.blockTimestamp || "0") * 1000,
+                          ).toLocaleString()}
+                        </Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
           </Tabs.Panel>
         </Tabs>
       </Card>

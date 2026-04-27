@@ -1,0 +1,123 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@400;500;600;700&display=swap");
+
+:root {
+  --vp-bg-1: #f6f7ef;
+  --vp-bg-2: #eaf4ff;
+  --vp-surface: rgba(255, 255, 255, 0.84);
+  --vp-surface-strong: rgba(255, 255, 255, 0.94);
+  --vp-border: rgba(11, 34, 56, 0.12);
+  --vp-text-soft: #3b4f5f;
+  --vp-accent: #007f73;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Sora", "Trebuchet MS", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(
+      circle at 12% -10%,
+      rgba(6, 164, 156, 0.26),
+      transparent 40%
+    ),
+    radial-gradient(circle at 88% 0%, rgba(29, 126, 235, 0.2), transparent 34%),
+    linear-gradient(140deg, var(--vp-bg-1) 0%, var(--vp-bg-2) 100%);
+  color: #0f2638;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.vp-shell {
+  min-height: 100vh;
+}
+
+.vp-header {
+  backdrop-filter: blur(10px);
+  background: var(--vp-surface);
+  border-bottom: 1px solid var(--vp-border);
+}
+
+.vp-navbar {
+  background: var(--vp-surface-strong);
+  border-right: 1px solid var(--vp-border);
+}
+
+.vp-main {
+  background: transparent;
+}
+
+.vp-card {
+  background: var(--vp-surface);
+  border: 1px solid var(--vp-border);
+  box-shadow: 0 16px 36px rgba(22, 49, 66, 0.08);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.vp-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 42px rgba(22, 49, 66, 0.1);
+}
+
+.vp-mono {
+  font-family: "IBM Plex Mono", "Cascadia Mono", "SFMono-Regular", monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.vp-section {
+  animation: vp-rise-in 340ms ease both;
+}
+
+:focus-visible {
+  outline: 2px solid #0a9b90;
+  outline-offset: 2px;
+}
+
+@keyframes vp-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .vp-main {
+    padding-inline: 4px;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --vp-bg-1: #0b1a23;
+    --vp-bg-2: #102532;
+    --vp-surface: rgba(12, 27, 37, 0.86);
+    --vp-surface-strong: rgba(12, 27, 37, 0.95);
+    --vp-border: rgba(152, 191, 214, 0.25);
+  }
+
+  body {
+    color: #e5f2fa;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vp-section,
+  .vp-card {
+    animation: none;
+    transition: none;
+    transform: none;
+  }
+}
