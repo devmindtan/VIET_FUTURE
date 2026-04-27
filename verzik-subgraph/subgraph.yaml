@@ -10,7 +10,7 @@ dataSources:
     source:
       address: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
       abi: VoucherProtocol
-      startBlock: 0
+      startBlock: 157
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
